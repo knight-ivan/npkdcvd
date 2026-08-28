@@ -4,7 +4,7 @@
 # For the 10-class Synthetic Study 1 setting:
 #   C=10, d=30, R_y = {y, y+1,...,y+5} (mod 30), cyclic, 6 vars per class
 #   Relevant: N(0.5, (0.02*(j-y+1))^2); Irrelevant: Uniform(0,1)
-#   n_y=150, B=300 replications
+#   n_y=150, B=1000 replications
 #
 # Plots two panels:
 #   Left: true Jaccard matrix Jac(R_y, R_y')
@@ -12,7 +12,7 @@
 #
 # The banded structure matches, showing class-specific attribution is recovered.
 
-FIGURES_DIR <- file.path("..", "manuscript", "figures")
+FIGURES_DIR <- file.path("..", "figures")
 DATA_DIR    <- file.path("..", "data")
 library(parallel)
 
@@ -21,7 +21,7 @@ set.seed(20260510)
 C          <- 10
 D          <- 30
 N_Y        <- 150
-B          <- 300
+B          <- 1000
 DETECT_TAU <- -1.5
 
 # ---- True relevant sets (cyclic, 1-indexed) ----
@@ -110,7 +110,7 @@ one_rep <- function(b) {
 
 # ---- Main ----
 n_cores <- max(1L, detectCores() - 1L)
-cat("V1: C=10, d=30, n_y=150, B=300\nUsing", n_cores, "cores\n")
+cat("V1: C=10, d=30, n_y=150, B=1000\nUsing", n_cores, "cores\n")
 
 t0   <- proc.time()[["elapsed"]]
 reps <- mclapply(seq_len(B), one_rep, mc.cores = n_cores)
@@ -129,7 +129,7 @@ cat("Results saved to V1_results.rds\n\n")
 
 
 # ---- Figure: side-by-side heatmaps (EPS-safe, no rasterImage) ----
-fig_path <- file.path("..", "manuscript", "figures", "V1_jaccard.eps")
+fig_path <- file.path("..", "figures", "V1_jaccard.eps")
 postscript(fig_path, width = 7.8, height = 3.8,
            horizontal = FALSE, onefile = FALSE, paper = "special")
 # Also save as PDF for pdflatex compatibility (run epstopdf afterward)
@@ -177,3 +177,16 @@ mtext("Jaccard", side = 3, line = 0.4, cex = 0.75, adj = 0)
 
 dev.off()
 cat("Figure saved to V1_jaccard.eps\n")
+
+pdf_path <- file.path("..", "figures", "V1_jaccard.pdf")
+pdf(pdf_path, width = 7.8, height = 3.8)
+layout(matrix(c(1, 2, 3), 1, 3), widths = c(4, 4, 0.6))
+par(mar = c(3.5, 3.5, 2.0, 0.3))
+plot_jac_heatmap(true_jac, "True Jaccard")
+plot_jac_heatmap(est_jac,  "NPKDC-vd (estimated)")
+par(mar = c(3.5, 0.5, 2.0, 1.5))
+plot.new()
+draw_colorbar(0.0, 0.05, 0.5, 0.95, n_steps = 80)
+mtext("Jaccard", side = 3, line = 0.4, cex = 0.75, adj = 0)
+dev.off()
+cat("PDF saved to V1_jaccard.pdf\n")

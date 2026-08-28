@@ -15,7 +15,7 @@
 #   NPKDC-vd correctly identifies {X1, X2} (small bandwidths within Class 1)
 #   OvR-RF inflates X3 (X3 discriminates Class 1 from Class 2 powerfully)
 #
-# Design: C=3, d=15, n_y=200, n_test=100, B=500 replications
+# Design: C=3, d=15, n_y=200, n_test=100, B=1000 replications
 # Uses only: parallel, ranger
 
 FIGURES_DIR <- file.path("..", "manuscript", "figures")
@@ -28,7 +28,7 @@ C      <- 3
 D      <- 15
 N_Y    <- 200
 N_TEST <- 100
-B      <- 500
+B      <- 1000
 DETECT_TAU <- -1.5
 
 # True relevant sets and sizes

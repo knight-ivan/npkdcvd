@@ -2,7 +2,7 @@
 # Improved Z-score figure for Study 2 (d=200, C=5)
 # Shows variables 1-40 only (all relevant vars are in 1-29; vars 30+ are all Z≈0)
 
-FIGURES_DIR <- file.path("..", "manuscript", "figures")
+FIGURES_DIR <- file.path("..", "figures")
 DATA_DIR    <- file.path("..", "data")
 set.seed(42)
 C   <- 5L
@@ -79,15 +79,15 @@ for (y in 1:5) do_panel(y)
 # 6th panel: shared legend + note
 par(mar = c(3.2, 0.5, 1.8, 0.5))
 plot.new()
-legend("center", bty = "n", cex = 0.82,
+legend("center", bty = "n", cex = 1.05,
        legend = c("Relevant variable", "Irrelevant variable",
                   "Detection threshold  tau = -1.5"),
        pch    = c(16, 20, NA),
        col    = c(col_rel, col_irrel, "#4393c3"),
        lty    = c(NA, NA, 2), lwd = c(NA, NA, 1.4),
        pt.cex = c(1.35, 0.7, NA))
-text(0.5, 0.20, "Note: variables 30-200\n(171 irrelevant) omitted;\nall have Z = 0.",
-     cex = 0.72, adj = c(0.5, 0.5), col = "grey40")
+text(0.5, 0.12, "Note: variables 30-200\n(171 irrelevant) omitted;\nall have Z = 0.",
+     cex = 0.90, adj = c(0.5, 0.5), col = "grey40")
 mtext("Variable index (1-40 shown)", side = 1, outer = TRUE, line = 0.7, cex = 0.82)
 dev.off()
 cat("EPS saved:", fig_path, "\n")
@@ -100,15 +100,15 @@ par(mar = c(3.2, 3.4, 1.8, 0.6), oma = c(2, 0.5, 0.5, 0.5))
 for (y in 1:5) do_panel(y)
 par(mar = c(3.2, 0.5, 1.8, 0.5))
 plot.new()
-legend("center", bty = "n", cex = 0.82,
+legend("center", bty = "n", cex = 1.05,
        legend = c("Relevant variable", "Irrelevant variable",
                   "Detection threshold  tau = -1.5"),
        pch    = c(16, 20, NA),
        col    = c(col_rel, col_irrel, "#4393c3"),
        lty    = c(NA, NA, 2), lwd = c(NA, NA, 1.4),
        pt.cex = c(1.35, 0.7, NA))
-text(0.5, 0.20, "Note: variables 30-200\n(171 irrelevant) omitted;\nall have Z = 0.",
-     cex = 0.72, adj = c(0.5, 0.5), col = "grey40")
+text(0.5, 0.12, "Note: variables 30-200\n(171 irrelevant) omitted;\nall have Z = 0.",
+     cex = 0.90, adj = c(0.5, 0.5), col = "grey40")
 mtext("Variable index (1-40 shown)", side = 1, outer = TRUE, line = 0.7, cex = 0.82)
 dev.off()
 cat("PDF saved:", pdf_path, "\n")

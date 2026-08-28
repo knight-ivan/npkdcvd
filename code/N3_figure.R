@@ -1,6 +1,6 @@
 # N3_figure.R — improved boxplot for Study 5
 
-FIGURES_DIR <- file.path("..", "manuscript", "figures")
+FIGURES_DIR <- file.path("..", "figures")
 DATA_DIR    <- file.path("..", "data")
 set.seed(1 * 999 + 42)
 C  <- 5L; D <- 20L; N_Y <- 150L; N_TEST <- 100L
@@ -82,7 +82,7 @@ do_plot <- function() {
   mtext("Irrelevant  (17 vars)", side = 3, at = 11.5, cex = 0.76, line = 0.9,
         col = "grey40")
   rug(relevant_c1, side = 3, ticksize = 0.06, col = "#d6604d", lwd = 2)
-  legend("topright", bty = "n", cex = 0.82,
+  legend("bottomright", bty = "n", cex = 0.82,
          legend = c(expression("True "~R[y]~" (3 vars)"),
                     "Irrelevant",
                     "Class-level detected"),

@@ -10,7 +10,7 @@
 # Detection: cross-class Silverman Z-score, threshold DETECT_TAU = -1.5
 #   For C=5, Z_relevant → -4/√5 ≈ -1.789 < -1.5 (detectable in limit)
 #   With σ_rel=0.5, Z variance is large at small n_y → visible convergence curve
-# B = 500 replications per n_y; n_y ∈ {30,50,75,100,150,200,300,500}
+# B = 1000 replications per n_y; n_y ∈ {30,50,75,100,150,200,300,500}
 
 FIGURES_DIR <- file.path("..", "manuscript", "figures")
 DATA_DIR    <- file.path("..", "data")
@@ -21,7 +21,7 @@ set.seed(20260510)
 C          <- 5
 D          <- 25
 N_Y_GRID   <- c(30, 50, 75, 100, 150, 200, 300, 500)
-B          <- 500
+B          <- 1000
 DETECT_TAU <- -1.5
 
 R_Y       <- rep(3, C)
@@ -149,7 +149,7 @@ prec_agg  <- sapply(results, function(r) mean(r$prec_mn))
 f1_agg    <- sapply(results, function(r) mean(r$f1_mn))
 exact_agg <- sapply(results, function(r) mean(r$exact_mn))
 
-fig_path <- file.path("..", "manuscript", "figures", "N2_detprob.eps")
+fig_path <- file.path("..", "figures", "N2_detprob.eps")
 postscript(fig_path, width = 5.5, height = 4.2,
            horizontal = FALSE, onefile = FALSE, paper = "special")
 

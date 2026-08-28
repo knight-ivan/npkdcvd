@@ -1,11 +1,11 @@
 # N6_figure_v2.R — improved heatmap figure for Study 6
 
-FIGURES_DIR <- file.path("..", "manuscript", "figures")
+FIGURES_DIR <- file.path("..", "figures")
 DATA_DIR    <- file.path("..", "data")
 library(parallel)
 
 set.seed(20260515)
-C <- 3L; D <- 15L; N_Y <- 200L; B <- 500L
+C <- 3L; D <- 15L; N_Y <- 200L; B <- 1000L
 R_Y      <- c(2L, 1L, 2L)
 REL_SETS <- list(c(1L, 2L), c(3L), c(4L, 5L))
 
@@ -44,7 +44,7 @@ one_rep_sel <- function(b) {
 }
 
 n_cores <- max(1L, detectCores()-1L)
-cat("Computing selection frequencies (B=500)...\n")
+cat("Computing selection frequencies (B=1000)...\n")
 sels    <- mclapply(1:B, one_rep_sel, mc.cores=n_cores)
 np_freq <- Reduce("+", lapply(sels, `[[`, "np")) / B
 rf_freq <- Reduce("+", lapply(sels, `[[`, "rf")) / B

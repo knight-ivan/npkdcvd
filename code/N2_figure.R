@@ -1,6 +1,6 @@
 # N2_figure.R  — improved detection-quality vs n_y figure
 
-FIGURES_DIR <- file.path("..", "manuscript", "figures")
+FIGURES_DIR <- file.path("..", "figures")
 DATA_DIR    <- file.path("..", "data")
 res <- readRDS(file.path(DATA_DIR, "N2_results.rds"))
 
@@ -32,7 +32,7 @@ do_plot <- function() {
         lty = ltys[3], lwd = lwds[3], cex = 1.2)
   lines(N_Y_GRID, exact_agg, type = "b", col = cols[4], pch = pchs[4],
         lty = ltys[4], lwd = lwds[4], cex = 1.2)
-  legend("right", bty = "n",
+  legend("bottomright", bty = "n",
          legend = c("Recall", "Precision", "F1",
                     expression(P(hat(R)[y]==R[y]))),
          col = cols, pch = pchs, lty = ltys, lwd = lwds, cex = 0.88)

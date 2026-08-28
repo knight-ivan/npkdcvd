@@ -8,7 +8,7 @@
 # Design: C=5, d=20, r_y=3 per class (disjoint, vars 1-15 relevant, 16-20 irrel)
 # Relevant: N(0.5, 0.5²); Irrelevant: N(0,1)
 # n_train=150 per class, n_test=100 per class
-# B=100 replications
+# B=1000 replications
 #
 # Methods compared:
 #  A. NPKDC-vd class-level: R̂_y from Silverman Z-score detection (stable per class)
@@ -30,7 +30,7 @@ C       <- 5
 D       <- 20
 N_Y     <- 150
 N_TEST  <- 100
-B       <- 100
+B       <- 1000
 DETECT_TAU <- -1.5
 R_Y     <- rep(3, C)
 rel_start <- cumsum(c(1, R_Y[-C]))   # 1, 4, 7, 10, 13
@@ -265,7 +265,7 @@ phi_c1 <- t(apply(dat1$test[[1]], 1, function(xi)
 cl_det1 <- detect_class_level(dat1$train)
 relevant_c1 <- which(cl_det1[1, ] == 1L)  # detected relevant for class 1
 
-fig_path <- file.path("..", "manuscript", "figures", "N3_contrast.eps")
+fig_path <- file.path("..", "figures", "N3_contrast.eps")
 postscript(fig_path, width = 6, height = 4.2,
            horizontal = FALSE, onefile = FALSE, paper = "special")
 

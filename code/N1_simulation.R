@@ -16,7 +16,7 @@ C       <- 5          # number of classes
 D       <- 200        # total dimensions
 N_Y     <- 150        # training samples per class
 N_TEST  <- 100        # test samples per class
-B       <- 100        # replications
+B       <- 1000       # replications
 R_Y     <- c(3,5,5,8,8)  # relevant dimensions per class
 
 # Disjoint relevant variable sets
@@ -206,49 +206,43 @@ one_rep <- function(b, irrel_type) {
 }
 
 
-# ---- Main loop ----
+# ---- Main loop — all 3 sub-experiments in parallel ----
 irrel_types <- c("uniform", "normal", "ar1")
-results_all <- list()
 
-n_cores <- max(1L, detectCores() - 1L)
-cat("Using", n_cores, "cores\n\n")
+n_total  <- max(1L, detectCores() - 1L)
+n_sub    <- length(irrel_types)
+cores_ea <- max(1L, n_total %/% n_sub)   # cores per sub-experiment
+cat(sprintf("Using %d total cores, %d per sub-experiment\n\n", n_total, cores_ea))
 
-for (irrel in irrel_types) {
-  cat("=== Sub-experiment:", irrel, "===\n")
-  t_start <- proc.time()[["elapsed"]]
-
+run_one_type <- function(irrel) {
   res_list <- mclapply(seq_len(B),
-                       function(b) {
-                         if (b %% 20 == 0) message("  rep ", b)
-                         one_rep(b, irrel)
-                       },
-                       mc.cores = n_cores)
-
-  t_elapsed <- proc.time()[["elapsed"]] - t_start
-  cat("Wall time:", round(t_elapsed, 1), "sec\n")
-
+                       function(b) one_rep(b, irrel),
+                       mc.cores = cores_ea)
   acc_npk  <- sapply(res_list, `[[`, "acc_npk")
   acc_svm  <- sapply(res_list, `[[`, "acc_svm")
   time_npk <- sapply(res_list, `[[`, "time")
-  # Attribution: 3D array [rep x class x metric]
   attr_arr <- array(unlist(lapply(res_list, `[[`, "attr")),
                     dim = c(B, C, 3))
+  list(acc_npk = acc_npk, acc_svm = acc_svm,
+       time_npk = time_npk, attr_arr = attr_arr)
+}
 
-  results_all[[irrel]] <- list(
-    acc_npk  = acc_npk,
-    acc_svm  = acc_svm,
-    time_npk = time_npk,
-    attr_arr = attr_arr   # [rep, class, prec/rec/f1]
-  )
+t0 <- proc.time()[["elapsed"]]
+results_list <- mclapply(irrel_types, run_one_type, mc.cores = n_sub)
+cat(sprintf("All sub-experiments done in %.1f sec\n\n",
+            proc.time()[["elapsed"]] - t0))
 
-  cat("\nNPKDC-vd accuracy: ", round(mean(acc_npk), 4),
-      " (", round(sd(acc_npk), 4), ")\n", sep = "")
-  cat("SVM accuracy:      ", round(mean(acc_svm), 4),
-      " (", round(sd(acc_svm), 4), ")\n", sep = "")
-  cat("NPKDC-vd time/rep: ", round(mean(time_npk), 2),
-      " (", round(sd(time_npk), 2), ") sec\n", sep = "")
+results_all <- setNames(results_list, irrel_types)
+
+for (irrel in irrel_types) {
+  r <- results_all[[irrel]]
+  cat("=== Sub-experiment:", irrel, "===\n")
+  cat("NPKDC-vd accuracy: ", round(mean(r$acc_npk), 4),
+      " (", round(sd(r$acc_npk), 4), ")\n", sep = "")
+  cat("SVM accuracy:      ", round(mean(r$acc_svm), 4),
+      " (", round(sd(r$acc_svm), 4), ")\n", sep = "")
   cat("Attribution F1 per class (mean over", B, "reps):\n")
-  print(round(apply(attr_arr[,,3], 2, mean), 4))
+  print(round(apply(r$attr_arr[,,3], 2, mean), 4))
   cat("\n")
 }
 

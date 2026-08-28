@@ -1,124 +1,63 @@
-# npkdcvd
+# NPKDC-vd: Generative Variable Attribution for Sparse Nonparametric Multi-Class Classification
 
-**Reproducibility bundle for:**
+Reproducibility code for **NPKDC-vd** ("Naming Each Class"), a method that names, for
+each class, the variables on which that class's *own* conditional density is
+**concentrated** — its generative identity — rather than the variables that merely
+*separate* it from the other classes.
 
-> Foo, H.-M., Chen, W.-P. N., and Chang, Y.-C. I. (2026).
-> Class-Specific Variable Detection for Sparse Nonparametric Multiclass Classification.
-> *Journal of Computational and Graphical Statistics* (submitted).
+This bundle implements the **corrected density-rodeo**: a standardized
+density-derivative statistic `Z_j = ∂f̂/∂h_j`, cross-fitting, a squared
+(non-cancelling) aggregate `T_j`, and a deterministic largest-gap selection rule, with
+an optional marginal pre-screen for high dimension. The method core is
+[`code/rodeo_core.R`](code/rodeo_core.R).
 
----
+## Requirements
+- **R** with `parallel` (fork-based; macOS/Linux). `e1071` for the SVM comparison.
+- **Python 3** with `scikit-learn` + `numpy` — only to fetch the digit datasets.
 
-## Overview
+## Reproduce
 
-This repository contains all R code, simulation scripts, and pre-generated figures needed to reproduce the tables and figures in the main paper and Supplementary Material.
+Run from `code/`. `RODEO_B` = number of splits (use `1000` for the final tables);
+`RODEO_CORES` = core count.
 
-The core method is **NPKDC-vd** (Nonparametric Posterior Kernel Density Classifier with class-specific variable detection): a sparse nonparametric multiclass classifier that applies Rodeo-style bandwidth shrinkage independently to each class-conditional density, producing a per-class bandwidth vector that serves as a direct attribution signal.
+```bash
+cd code
 
----
+# --- Simulation studies ---
+RODEO_B=1000 Rscript rodeo_study1.R     # Study 1  overlapping sets / Jaccard
+RODEO_B=1000 Rscript rodeo_validate.R   # Study 2  d = 200
+RODEO_B=1000 Rscript rodeo_study3.R     # Study 3  convergence (Theorem 2)
+RODEO_B=1000 Rscript rodeo_study4.R     # Study 4  class- vs per-observation stability
+RODEO_B=1000 Rscript rodeo_study5.R     # Study 5  generative vs discriminative
 
-## Repository structure
+# --- Robustness grid E1-E9 (+ ablation and a density-based competitor) ---
+Rscript robustness_experiments.R all --B=500 --rule=rodeo
+Rscript rodeo_robustness_compare.R
 
-```
-npkdcvd/
-├── reproduce_all_tables.R     # Master script — reproduces all paper tables
-├── reproduce_all_figures.R    # Master script — reproduces all paper figures
-├── R/                         # Core source code
-│   ├── 00_setup.R             # Dependency checks and shared utilities
-│   ├── 01_data_and_core_npkdc.R   # Data generation, NPKDC-vd, KDE classifier, metrics
-│   ├── 02_benchmark_methods.R     # OvR-LASSO, OvE-LASSO, RBF-SVM, XGBoost/TreeSHAP
-│   ├── 03_run_N4_modern_comparison_B1000.R  # Study 4 full runner (B=1000)
-│   ├── 04_make_N4_figures.R   # Study 4 figure generation
-│   ├── 05_smoke_test.R        # Quick end-to-end test (~30 seconds)
-│   └── 07_make_phase3_visualizations.R  # Supplementary bandwidth box-plots
-├── scripts/                   # Per-study simulation and figure scripts
-│   ├── N1_simulation.R / N1_figure.R   # Synthetic Study 1
-│   ├── N2_simulation.R / N2_figure.R   # Synthetic Study 3 (detection probability)
-│   ├── N3_simulation.R / N3_figure.R   # Synthetic Study 2 (high-dimensional)
-│   ├── N6_simulation.R / N6_figure_v2.R  # Synthetic Study 5 (generative vs discriminative)
-│   ├── V1_jaccard.R           # Real Data 1: Anuran species classification
-│   └── V2_digit_simulation.R  # Real Data 3: Handwritten digit attribution
-└── figures/                   # Pre-generated EPS figures (committed for reference)
-```
-
----
-
-## Quick start
-
-### 1. Smoke test (~30 seconds)
-Verifies that the core NPKDC-vd functions run correctly:
-```r
-Rscript R/05_smoke_test.R
+# --- Real data ---
+# Digits (UCI optdigits 8x8 + MNIST) from OpenML, written to /tmp:
+python3 fetch_digit_data.py /tmp
+# Anuran Calls (MFCCs) from the UCI ML Repository:
+#   curl -L -o anuran.zip "https://archive.ics.uci.edu/static/public/406/anuran+calls+mfccs.zip"
+#   unzip anuran.zip   ->   Frogs_MFCCs.csv
+ANURAN_CSV=/path/to/Frogs_MFCCs.csv RODEO_B=1000 Rscript real_anuran.R
+RODEO_B=1000 Rscript real_waveform.R
+Rscript V2_digit_simulation.R                    # digit classification
+RODEO_B=1000 Rscript real_digit_attribution.R    # MNIST per-pixel attribution
+Rscript frog_bar_fig.R                            # first-MFCC selection-frequency figure
 ```
 
-### 2. Reproduce all tables
-```r
-Rscript reproduce_all_tables.R
+## Why the handwritten-digit attribution is (correctly) uniform
+`mnist_scoremap.R`, `uci8x8_attr.R`, and `mnist_ntr_sensitivity.R` document that the
+digit attribution is a near-uniform per-pixel profile: **no small set of pixels
+dominates** a digit's density, because a digit's identity is carried by the whole
+*distributed* stroke configuration. The same rule that isolates a sparse dominant set
+where one exists — the simulation studies, and the leading MFCC that anchors several
+frog species — correctly reports its absence where none does.
+
+## Layout
 ```
-Full runs use B = 500–1000 replications and can take several hours.
-For a quick check, open the script and set `B_OVERRIDE <- 5`.
-
-### 3. Reproduce all figures
-```r
-Rscript reproduce_all_figures.R
+code/    all R scripts and fetch_digit_data.py; rodeo_core.R is the method core
 ```
-Run after `reproduce_all_tables.R` (figures read from `results/`).
-
----
-
-## Required R packages
-
-The NPKDC-vd core runs in **base R only** (no external packages).
-
-The full benchmark comparison additionally requires:
-```r
-install.packages(c("glmnet", "e1071", "xgboost", "parallel"))
-```
-
-| Package  | Used for |
-|----------|----------|
-| `glmnet` | OvR-LASSO and OvE-LASSO benchmarks |
-| `e1071`  | Radial-kernel SVM benchmark |
-| `xgboost`| XGBoost classifier and TreeSHAP attribution |
-| `parallel`| Parallel class estimation (optional, speeds up full runs) |
-
-If any benchmark package is missing, the corresponding method is skipped and NPKDC-vd results are still produced.
-
----
-
-## Session information
-
-All results in the paper were produced with R 4.3.x on macOS.
-Full `sessionInfo()` output is archived in `results/sessionInfo.txt` after running the master scripts.
-
----
-
-## Data sources
-
-| Dataset | Source |
-|---------|--------|
-| Anuran calls (7 species, 22 MFCC features) | UCI Machine Learning Repository |
-| UCI Waveform (5000 obs, 40 features) | UCI Machine Learning Repository |
-| UCI Optical Digits (8×8, 64 features) | UCI Machine Learning Repository |
-| MNIST (28×28, balanced 100/class) | LeCun et al. (2010) |
-
-The real datasets are downloaded automatically by the simulation scripts on first run.
-
----
-
-## Citation
-
-```bibtex
-@article{foo2026npkdcvd,
-  author  = {Foo, Hui-Mean and Chen, Wan-Ping Nicole and Chang, Yuan-chin Ivan},
-  title   = {Class-Specific Variable Detection for Sparse Nonparametric Multiclass Classification},
-  journal = {Journal of Computational and Graphical Statistics},
-  year    = {2026},
-  note    = {Submitted}
-}
-```
-
----
-
-## License
-
-MIT License. See `LICENSE` for details.
+Generated results (`*.rds`) and figures are produced by the scripts and are not stored
+in the repository (see `.gitignore`). The associated manuscript is under review.
