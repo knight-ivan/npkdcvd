@@ -38,15 +38,14 @@ Outputs are written to `results_R2/` (not stored in the repository).
 
 | Files | Purpose |
 |---|---|
-| `run_R2.sh` | Entry point for all results |
+| `run_R2.sh`, `test_rodeo_core_R2.R` | Entry point for all results; regression test of the core |
 | `rodeo_core.R`, `npkdcvd_core.R`, `reviewer_metrics.R` | Method core and shared helpers |
 | `rodeo_study1.R`, `rodeo_study2.R`, `rodeo_study3.R`, `rodeo_study5.R` | Simulation Studies 1, 2, 3, and 5 |
 | `robustness_experiments.R`, `robustness_e8_e9.R` | Robustness designs E1–E7, ablation E8, no-rodeo baseline E9 |
 | `real_anuran.R`, `real_waveform.R`, `real_digit_attribution.R` | Real-data and benchmark attribution (pooled-PIT and raw scale) |
 | `study1_jaccard_figure.R`, `frog_bar_fig.R` | Figures |
-| `N*_simulation.R`, `N*_figure*.R`, `V1_jaccard.R`, `V2_digit_simulation.R` | Earlier non-rodeo analyses that the paper still reports |
+| `N1_simulation.R`, `N1_figure.R`, `N3_simulation.R`, `N6_simulation.R`, `N6_figure_v2.R`, `V1_jaccard.R`, `V2_digit_simulation.R`, `accuracy_gate_audit.R` | Earlier non-rodeo analyses that the paper still reports, and the Stage-1 gate audit |
 | `original_matlab/` | Original MATLAB implementation behind Table 1 and Supplement Tables S.1–S.4 |
-| `rodeo_study4.R`, `rodeo_validate.R`, `rodeo_validate_bc.R`, `mnist_ntr_sensitivity.R` | Development checks |
 
 ## Change log
 

@@ -40,14 +40,4 @@ saveRDS(list(true_jac=J0,est_jac=Jbar,overall=per_rep,summary=summ,replications=
         file.path(resdir,"study1_rodeo_results.rds"))
 cat(sprintf("Study 1 formal rodeo: B=%d | all-class exact=%.4f | max|mean J-J0|=%.6g\n",
  B,mean(per_rep$all_class_exact),max(abs(Jbar-J0))))
-# Reproducible, journal-ready heatmap PDF of the formal rather than legacy selector.
-pdf(file.path(resdir,"study1_rodeo_jaccard.pdf"),width=9,height=4)
-par(mfrow=c(1,2),mar=c(4,4,3,2))
-for (m in list(J0,Jbar)) {
-  image(1:C,1:C,t(m[C:1,,drop=FALSE]),zlim=c(0,1),
-        xlab="Class",ylab="Class (reverse axis)",axes=FALSE,
-        col=colorRampPalette(c("white","steelblue4"))(101))
-  axis(1,at=seq_len(C)); axis(2,at=seq_len(C),labels=C:1)
-  box()
-}
-dev.off()
+# The paper figure is drawn from study1_rodeo_results.rds by study1_jaccard_figure.R.
