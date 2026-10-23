@@ -12,7 +12,7 @@ parent folder.
 |---|---|
 | `RodeoPCNew.m` | Original NPKDC classifier: per-class rodeo bandwidths, training and prediction |
 | `Rodeo_localNew.m`, `Rodeo_localNormal.m`, `Rodeo_GradNormal.m` | Rodeo bandwidth routines called by `RodeoPCNew.m` |
-| `Ex1Com.m` | Study 1 design (cyclic relevant sets; relevant N(0.5, (0.02k)^2), irrelevant Uniform(0,1)); NPKDC-vd vs. LSPC accuracy and time, bandwidth Z-scores |
+| `Ex1Com.m` | Study 1 design (overlapping relevant sets R_y = {y, ..., y+5}; relevant N(0.5, (0.02k)^2), irrelevant Uniform(0,1)); NPKDC-vd vs. LSPC accuracy and time, bandwidth Z-scores |
 | `Ex2ComDistNew.m` | Class-combination design (2–5 of 5 classes, d = 10), a later variant of the design behind Supplement Tables S.3–S.4 |
 | `ExAll.m` | Batch driver (MATLAB `batch`, 8 workers) with example settings |
 

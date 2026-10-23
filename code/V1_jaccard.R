@@ -2,7 +2,7 @@
 # Phase 3, Visualization V1: Jaccard overlap matrix |R̂_y ∩ R̂_y'| / |R̂_y ∪ R̂_y'|
 #
 # For the 10-class Synthetic Study 1 setting:
-#   C=10, d=30, R_y = {y, y+1,...,y+5} (mod 30), cyclic, 6 vars per class
+#   C=10, d=30, R_y = {y, y+1,...,y+5}, 6 vars per class (variables 1-15 only)
 #   Relevant: N(0.5, (0.02*(j-y+1))^2); Irrelevant: Uniform(0,1)
 #   n_y=150, B=1000 replications
 #
@@ -24,8 +24,8 @@ N_Y        <- 150
 B          <- 1000
 DETECT_TAU <- -1.5
 
-# ---- True relevant sets (cyclic, 1-indexed) ----
-# R_y = {y, y+1,...,y+5} with indices mod 30 (1-based: ((y-1+k) %% 30) + 1, k=0..5)
+# ---- True relevant sets (1-indexed) ----
+# R_y = {y, y+1,...,y+5}; the mod-30 indexing below never wraps because y + 5 <= 15
 REL_SETS <- lapply(1:C, function(y) (((y - 1) + 0:5) %% 30) + 1)
 R_Y <- rep(6, C)
 
