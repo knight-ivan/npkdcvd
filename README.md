@@ -19,7 +19,7 @@ background, and an optional marginal pre-screen.  `code/test_rodeo_core_R2.R` ch
 ## Reproduce
 
 ```bash
-bash code/run_R2.sh          # every result of the revised paper, B = 1000
+bash code/run_R2.sh          # every attribution result of the revised paper, B = 1000
 bash code/run_R2.sh smoke    # quick check, B = 2; writes results_smoke/ only
 ```
 
