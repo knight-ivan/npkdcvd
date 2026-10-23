@@ -11,7 +11,7 @@ if (is.na(here) || !nzchar(here)) here <- "."
 source(file.path(here, "npkdcvd_core.R"))
 source(file.path(here, "rodeo_core.R"))
 
-ncor <- as.integer(Sys.getenv("RODEO_CORES", as.character(detectCores())))
+ncor <- as.integer(Sys.getenv("RODEO_CORES", as.character(max(1L, detectCores() - 2L))))
 
 ## ---- (A) hard design: plain vs baseline-corrected -------------------------
 gen_hard <- function(seed) {

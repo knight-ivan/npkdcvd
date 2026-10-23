@@ -1,10 +1,14 @@
-# real_waveform.R — Breiman waveform-40 validation: rebuilt-rodeo attribution.
-# Synthetic (reproducible): 3 classes, vars 1-21 = signal (R_y={1..21}), 22-40 = noise.
-#   RODEO_CORES=22 RODEO_B=1000 Rscript real_waveform.R
+# real_waveform.R — Waveform-40 generated benchmark: corrected cross-fitted rodeo
+# attribution. Controlled generator: 3 classes, vars 1-21 are discriminative
+# waveform coordinates by construction; vars 22-40 are independent N(0,1) noise
+# shared by all classes. The manuscript does not treat {1,...,21} as a generative
+# naming truth. Each replication runs the selector on the raw scale (first, so its
+# random stream equals a raw-only run) and after the pooled empirical PIT.
+#   RODEO_CORES=14 RODEO_B=1000 Rscript real_waveform.R
 here <- dirname(sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)[1]))
 if (length(here) && nzchar(here)) setwd(here)
 source("rodeo_core.R"); suppressMessages(library(parallel))
-cores <- max(1L, as.integer(Sys.getenv("RODEO_CORES", as.character(detectCores() - 2L))))
+cores <- max(1L, as.integer(Sys.getenv("RODEO_CORES", as.character(max(1L, detectCores() - 2L)))))
 B     <- as.integer(Sys.getenv("RODEO_B", "1000"))
 n_y   <- 500L
 
@@ -26,13 +30,27 @@ am  <- function(sel, D = 40) {                             # attribution metrics
 }
 one <- function(b) {
   set.seed(b * 104729 + 3)
-  sel <- rodeo_detect(lapply(1:3, function(cl) gen_class(n_y, cl)), keep = 40, mc.cores = 1L)  # 3 x 40
-  t(apply(sel, 1, am))
+  trl <- lapply(1:3, function(cl) gen_class(n_y, cl))
+  sel    <- rodeo_detect(trl, keep = 40, mc.cores = 1L)      # raw scale, 3 x 40
+  sel_bc <- rodeo_detect_bc(trl, keep = 40, mc.cores = 1L)   # pooled empirical PIT
+  list(raw = t(apply(sel, 1, am)), pit = t(apply(sel_bc, 1, am)),
+       sel = sel, sel_bc = sel_bc)
 }
 cat(sprintf("Waveform-40: 3 classes, n_y=%d, B=%d, cores=%d\n", n_y, B, cores))
 res <- mclapply(seq_len(B), one, mc.cores = cores)
-M   <- do.call(rbind, res)
-cat(sprintf("Attribution (mean over classes x reps): Prec=%.4f Rec=%.4f F1=%.4f P(exact)=%.4f  mean #noise selected=%.3f\n",
-            mean(M[, "prec"]), mean(M[, "rec"]), mean(M[, "f1"]), mean(M[, "exact"]), mean(M[, "n_noise_sel"])))
-saveRDS(list(M = M), file.path("..", "data", "real_waveform_results.rds"))
-cat("saved real_waveform_results.rds\n")
+M    <- do.call(rbind, lapply(res, `[[`, "raw"))
+M_bc <- do.call(rbind, lapply(res, `[[`, "pit"))
+freq    <- Reduce(`+`, lapply(res, `[[`, "sel")) / length(res)      # 3 x 40 selection frequency
+freq_bc <- Reduce(`+`, lapply(res, `[[`, "sel_bc")) / length(res)
+rep_summary <- function(M, lab) {
+  relsel <- M[, "rec"] * length(rel); noisel <- M[, "n_noise_sel"]
+  cat(sprintf("%-22s Prec=%.4f Rec=%.4f F1=%.4f P(exact)=%.4f | per class: #waveform sel=%.3f #noise sel=%.3f; P(>=1 noise)=%.3f; P(empty)=%.3f\n",
+      lab, mean(M[, "prec"]), mean(M[, "rec"]), mean(M[, "f1"]), mean(M[, "exact"]),
+      mean(relsel), mean(noisel), mean(noisel > 0), mean(relsel + noisel == 0)))
+}
+rep_summary(M, "raw scale:")
+rep_summary(M_bc, "pooled empirical PIT:")
+outdir <- Sys.getenv("RODEO_OUT", file.path("..", "results_R2")); dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
+saveRDS(list(M = M, M_bc = M_bc, freq = freq, freq_bc = freq_bc, B = B, n_y = n_y),
+        file.path(outdir, "real_waveform_results.rds"))
+cat(sprintf("\nsaved %s\n", file.path(outdir, "real_waveform_results.rds")))

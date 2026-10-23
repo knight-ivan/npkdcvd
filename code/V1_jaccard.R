@@ -109,7 +109,7 @@ one_rep <- function(b) {
 
 
 # ---- Main ----
-n_cores <- max(1L, detectCores() - 1L)
+n_cores <- max(1L, detectCores() - 2L)
 cat("V1: C=10, d=30, n_y=150, B=1000\nUsing", n_cores, "cores\n")
 
 t0   <- proc.time()[["elapsed"]]

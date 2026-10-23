@@ -21,6 +21,11 @@
 FIGURES_DIR <- file.path("..", "manuscript", "figures")
 DATA_DIR    <- file.path("..", "data")
 library(parallel)
+# R2: explicit, configurable Stage-1 descriptive gate. It is newly defined
+# here; the old published gate annotations did not arise from coded decisions.
+.r2_script_dir <- dirname(normalizePath(sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value=TRUE)[1L])))
+source(file.path(.r2_script_dir, "reviewer_metrics.R"))
+STAGE1_THRESHOLD <- as.numeric(Sys.getenv("STAGE1_THRESHOLD", "0.60"))
 
 set.seed(20260515)
 
@@ -231,7 +236,7 @@ one_rep <- function(b) {
 
 
 # ---- Main --------------------------------------------------------------------
-n_cores <- max(1L, detectCores() - 1L)
+n_cores <- max(1L, detectCores() - 2L)
 cat(sprintf("Study 6: C=%d, d=%d, n_y=%d, B=%d | R_1={1,2}, R_2={3}, R_3={4,5}\n",
             C, D, N_Y, B))
 cat(sprintf("KEY: X3 separates Class 1 from Class 2 (discriminative)\n"))
@@ -263,6 +268,12 @@ cat("=== ACCURACY (Stage 1) ===\n")
 cat(sprintf("  NPKDC-vd : %.4f (%.4f)\n", mean(np_acc_vec), sd(np_acc_vec)))
 cat(sprintf("  OvR-RF   : %.4f (%.4f)\n",
             mean(rf_acc_vec, na.rm=TRUE), sd(rf_acc_vec, na.rm=TRUE)))
+
+cat(sprintf("Stage-1 gate (mean test accuracy >= %.2f): NPKDC-vd %s, OvR-RF %s\n",
+            STAGE1_THRESHOLD,
+            ifelse(stage1_gate(mean(np_acc_vec),STAGE1_THRESHOLD),"pass","fail"),
+            if (all(!is.finite(rf_acc_vec))) "unavailable" else
+              ifelse(stage1_gate(mean(rf_acc_vec,na.rm=TRUE),STAGE1_THRESHOLD),"pass","fail")))
 
 cat("\n=== ATTRIBUTION F1 by class (Stage 2) ===\n")
 cat("Method         | Class 1 (R={1,2}) | Class 2 (R={3}) | Class 3 (R={4,5})\n")

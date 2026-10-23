@@ -1,0 +1,9 @@
+setting,C,D,true_variables_per_class,nominal_n_y,actual_n_y,signal_means,signal_sd,background,correlation,screen,comments
+E1,5,25,3,"50;100;200;400;800","same across classes",0.5,"min(0.9,1-1.2*n_y^(-0.4))","N(0,1)",independent,none,"Dispersion contrast weakens but does NOT vanish; mean contrast constant"
+E1V_NEW,5,25,3,"50;100;200;400;800","same across classes","2*n_y^(-0.25)","1-2*n_y^(-0.25)","N(0,1)",independent,none,"NEW optional DGP: both contrasts vanish; not used for existing manuscript figures"
+E2,5,25,3,"100;200;400","same across classes",0.5,0.1,"N(0,1), with common weak columns 16:19 N(0,0.5^2)",independent,none,"Shared non-flat weak nuisance; sensitive to flat-baseline assumption"
+E3,5,25,3,"100;200;300;400","n0*(0.4;0.7;1;1.5;2)",0.5,0.15,"N(0,1)",independent,none,"Actual per-class sample sizes recorded in raw CSV"
+E4,5,300,3,"75;100;150;200","same across classes",0.5,0.15,"N(0,1)",independent,"Top 40 pooled-SD/within-class-SD","Sure-screening frequency and conditional recovery separately reported"
+E5,5,25,3,"150;300","same across classes",0.5,0.15,"N(0,1)","corr .7 between first relevant col and col 16",none,"Correlated nuisance deliberately outside product-background assumption"
+E6,5,25,3,"150;300","same across classes",0.5,0.15,"t_3",independent,none,"All irrelevant coordinates Student t with df=3"
+E7,5,25,3,"150;300","same across classes",0.5,0.15,"N(0,1), shared bimodal col 20",independent,none,"Col 20 identical 50/50 N(-2,.3^2)+N(2,.3^2) in every class; optional PIT analysis"

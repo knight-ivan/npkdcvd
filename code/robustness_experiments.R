@@ -1,9 +1,10 @@
 # robustness_experiments.R
 # ---------------------------------------------------------------------------
 # Theme-E robustness studies requested by the reviewers (R1.C5, R2.C6).
-# SCAFFOLD: data-generating processes E1-E7 implemented; E8 (ablation) and
-# E9 (density competitor) are stubbed. Sources the shared detector from
-# npkdcvd_core.R so all studies use ONE implementation.
+# Data-generating processes E1-E7 are implemented here.  E8 (baseline-correction
+# ablation) and E9 (no-rodeo density baseline) are produced by robustness_e8_e9.R,
+# which calls run_scenario() below on the same generators and seeds.
+# Sources the shared detector from npkdcvd_core.R and the rodeo from rodeo_core.R.
 #
 # Run one scenario:   Rscript robustness_experiments.R E4
 # Run all:            Rscript robustness_experiments.R all
@@ -21,6 +22,7 @@ suppressWarnings(suppressMessages({
 }
 source(file.path(.get_script_dir(), "npkdcvd_core.R"))
 source(file.path(.get_script_dir(), "rodeo_core.R"))   # Route-2 rodeo detectors
+source(file.path(.get_script_dir(), "reviewer_metrics.R"))
 
 # ---- shared helpers --------------------------------------------------------
 # One class's n x D design: relevant cols ~ N(mu_rel, sd_rel); others via irrel_fun.
@@ -53,14 +55,14 @@ irr_ar1 <- function(n, m, rho = 0.5) {
 # n_vec is length-C per-class training sizes (allows imbalance).
 SCEN <- list()
 
-# E1: shrinking bandwidth gap — relevant sd grows toward background as n_y rises,
-#     so delta_y -> 0. Probes the finite-sample n_y >~ d log d / delta^2 boundary.
+# E1: weakening dispersion contrast (NOT asymptotically vanishing signal).
+# Relevant mean remains 0.5 and sd is capped at 0.9, so a nonzero
+# difference from the N(0,1) background persists at every sample size.
 SCEN$E1 <- list(C = 5, D = 25, r = rep(3, 5), n_grid = c(50, 100, 200, 400, 800),
   gen = function(nv) {
     C <- 5; D <- 25; rel <- disjoint_rel(C, rep(3, C))
-    # Gap between relevant and background bandwidths SHRINKS as n grows (problem
-    # gets harder with more data). Constant needs calibration to land the
-    # P(exact) transition inside n_grid; direction is what matters for the study.
+    # Increasing relevant SD attenuates but does NOT eliminate the signal.
+    # This is not evidence for a shrinking-to-zero asymptotic signal regime.
     sd_rel <- pmin(0.9, 1 - 1.2 * mean(nv)^(-0.4))
     tr <- lapply(seq_len(C), function(y) make_class(nv[y], D, rel[[y]], rep(0.5, 3), sd_rel, irr_normal))
     te <- lapply(seq_len(C), function(y) make_class(100,   D, rel[[y]], rep(0.5, 3), sd_rel, irr_normal))
@@ -85,7 +87,7 @@ SCEN$E2 <- list(C = 5, D = 25, r = rep(3, 5), n_grid = c(100, 200, 400),
   })
 
 # E3: class imbalance — unequal n_y across classes.
-SCEN$E3 <- list(C = 5, D = 25, r = rep(3, 5), n_grid = c(200),
+SCEN$E3 <- list(C = 5, D = 25, r = rep(3, 5), n_grid = c(100, 200, 300, 400),
   gen = function(nv) {
     C <- 5; D <- 25; rel <- disjoint_rel(C, rep(3, C))
     base <- nv[1]; nv <- round(base * c(0.4, 0.7, 1.0, 1.5, 2.0))
@@ -96,7 +98,7 @@ SCEN$E3 <- list(C = 5, D = 25, r = rep(3, 5), n_grid = c(200),
   })
 
 # E4: high dimension d > n_y.
-SCEN$E4 <- list(C = 5, D = 300, r = rep(3, 5), n_grid = c(150),
+SCEN$E4 <- list(C = 5, D = 300, r = rep(3, 5), n_grid = c(75, 100, 150, 200),
   gen = function(nv) {
     C <- 5; D <- 300; rel <- disjoint_rel(C, rep(3, C))
     mk <- function(n, y) make_class(n, D, rel[[y]], rep(0.5, 3), 0.15, irr_normal)
@@ -147,54 +149,106 @@ SCEN$E7 <- list(C = 5, D = 25, r = rep(3, 5), n_grid = c(150, 300),
          rel_sets = rel)  # trap NOT in any rel set: success = never flagged
   })
 
-# E8: ablation (KDE-no-detector; z-score vs gap rule) — TODO: wire in core rules.
-# E9: density-based competitor (per-class marginal-spread ranking) — TODO.
+# Optional E1V: a genuinely VANISHING class-specific signal (new R2 analysis).
+# Here Delta_n = 2 n^(-1/4), mu_rel(n)=Delta_n and sd_rel(n)=1-Delta_n,
+# so both location and dispersion contrasts vanish as n grows. At the
+# smallest n=50, Delta_n=.752 < 1. This is a NEW DGP and must not be confused
+# with the historical, bounded-contrast E1 estimates in the manuscript.
+SCEN$E1V <- list(C=5, D=25, r=rep(3,5), n_grid=c(50,100,200,400,800),
+  gen=function(nv) {
+    C <- 5; D <- 25; rel <- disjoint_rel(C,rep(3,C))
+    mk <- function(n,y) {
+      delta <- 2 * nv[y]^(-0.25)  # fixed train/test DGP at each grid point
+      make_class(n,D,rel[[y]],rep(delta,3),1-delta,irr_normal)
+    }
+    list(train=lapply(seq_len(C),function(y) mk(nv[y],y)),
+         test=lapply(seq_len(C),function(y) mk(100,y)), rel_sets=rel)
+  })
 
-# ---- runner ----------------------------------------------------------------
-run_scenario <- function(name, B = 500, rule = c("rodeo", "rodeo_bc", "gap", "zscore"),
-                         cores = max(1L, as.integer(Sys.getenv("RODEO_CORES", as.character(detectCores() - 2L))))) {
+# E8/E9 are comparison summaries rather than additional DGPs; see
+# robustness_e8_e9.R for baseline OFF/ON and the no-rodeo bandwidth baseline.
+
+# ---- updated R2 runner -----------------------------------------------------
+# Report raw class-by-replication outcomes AND independent-replicate MC intervals.
+# Data columns include the class-specific actual n_y (E3 unequal sizes), plus
+# sure-screening and conditional selection success for screened algorithms.
+# Return value: named list by nominal n0 with vectors c(prec,rec,f1,exact).
+run_scenario <- function(name, B = 500,
+                         rule = c("rodeo", "rodeo_bc", "gap", "zscore"),
+                         cores = reviewer_cores(), save_audit = TRUE) {
   rule <- match.arg(rule)
-  sc <- SCEN[[name]]; if (is.null(sc)) stop("unknown scenario: ", name)
-  # rodeo = Route-2 density rodeo (default); rodeo_bc = baseline-corrected (PIT);
-  # gap/zscore = the marginal-sd concentration detector = density-based COMPETITOR
-  # (E9) and the "KDE-no-rodeo" ablation baseline (E8).
-  detect <- switch(rule,
-    rodeo    = function(tr) rodeo_detect(tr,    keep = 40, mc.cores = 1L),
-    rodeo_bc = function(tr) rodeo_detect_bc(tr, keep = 40, mc.cores = 1L),
-    gap      = function(tr) detect_gap(tr),
-    zscore   = function(tr) detect_zscore(tr))
-  out <- list()
+  sc <- SCEN[[name]]
+  if (is.null(sc)) stop("unknown scenario: ", name)
+  if (!is.finite(B) || B < 1L) stop("B must be positive")
+  out <- list(); audit <- list()
   for (n0 in sc$n_grid) {
-    reps <- mclapply(seq_len(B), function(b) {
-      set.seed(b * 1000 + n0)
-      d  <- sc$gen(rep(n0, sc$C))
-      at <- attr_metrics(detect(d$train), d$rel_sets)
-      colMeans(at)
-    }, mc.cores = cores)
-    M <- do.call(rbind, reps)
-    out[[as.character(n0)]] <- colMeans(M)
-    cat(sprintf("[%s] n0=%d rule=%s  Prec=%.3f Rec=%.3f F1=%.3f P(exact)=%.3f\n",
-                name, n0, rule, out[[as.character(n0)]]["prec"],
-                out[[as.character(n0)]]["rec"], out[[as.character(n0)]]["f1"],
-                out[[as.character(n0)]]["exact"]))
+    reps <- parallel::mclapply(seq_len(B), function(b) {
+      set.seed(b * 1000L + n0 + 100000L * match(name,names(SCEN)))
+      d <- sc$gen(rep(n0, sc$C))
+      # E3 changes the actual sample size by class; retain these values.
+      actual_n <- vapply(d$train, nrow, integer(1))
+      if (rule == "rodeo") {
+        obj <- rodeo_detect_detail(d$train, keep=40, mc.cores=1L)
+        det <- obj$detected; screens <- obj$screen
+      } else if (rule == "rodeo_bc") {
+        pool <- do.call(rbind,d$train)
+        Xpit <- lapply(d$train,function(X) pit_transform(X,pool))
+        obj <- rodeo_detect_detail(Xpit, keep=40, mc.cores=1L)
+        det <- obj$detected; screens <- obj$screen
+      } else {
+        det <- if (rule == "gap") detect_gap(d$train) else detect_zscore(d$train)
+        screens <- replicate(sc$C, seq_len(sc$D), simplify=FALSE)
+      }
+      rows <- reviewer_metric_rows(det,d$rel_sets,b,name,n0)
+      rows$rule <- rule
+      rows$actual_n_y <- actual_n
+      rows$screen_all <- vapply(seq_len(sc$C),function(y)
+        as.numeric(all(d$rel_sets[[y]] %in% screens[[y]])),numeric(1))
+      rows$screened_dimension <- vapply(screens,length,integer(1))
+      rows$exact_given_screen <- ifelse(rows$screen_all == 1,rows$exact,NA_real_)
+      rows
+    }, mc.cores = if (.Platform$OS.type == "windows") 1L else cores,
+       mc.set.seed = FALSE)
+    R <- do.call(rbind,reps)
+    audit[[as.character(n0)]] <- R
+    m <- colMeans(R[,c("precision","recall","f1","exact"),drop=FALSE])
+    out[[as.character(n0)]] <- setNames(unname(m),c("prec","rec","f1","exact"))
+    cat(sprintf("[%s] n0=%d rule=%s B=%d F1=%.3f exact=%.3f screening=%.3f conditional exact=%.3f\n",
+                name,n0,rule,B,m["f1"],m["exact"],mean(R$screen_all),
+                if (any(R$screen_all == 1)) mean(R$exact[R$screen_all==1]) else NA_real_))
+  }
+  raw <- do.call(rbind,audit)
+  rownames(raw) <- NULL
+  if (save_audit) {
+    path <- reviewer_output_dir()
+    stem <- sprintf("robustness_%s_%s",name,rule)
+    write.csv(raw,file.path(path,paste0(stem,"_replications.csv")),row.names=FALSE)
+    write.csv(reviewer_summary(raw),file.path(path,paste0(stem,"_summary.csv")),row.names=FALSE)
+    screen <- aggregate(cbind(screen_all,exact) ~ setting+n_y, data=raw, FUN=mean)
+    # Conditional exact is undefined if no class survives screening.
+    cond <- aggregate(exact_given_screen ~ setting+n_y,data=raw,
+                      FUN=function(x) if (all(is.na(x))) NA_real_ else mean(x,na.rm=TRUE),na.action=na.pass)
+    screen <- merge(screen, cond, by=c("setting","n_y"), all.x=TRUE, sort=TRUE)
+    names(screen)[names(screen)=="exact_given_screen"] <- "conditional_exact"
+    write.csv(screen,file.path(path,paste0(stem,"_screening.csv")),row.names=FALSE)
+    saveRDS(list(raw=raw,summary=reviewer_summary(raw),screen=screen,seed_rule="b*1000+n0+100000*scenario_index",B=B),
+            file.path(path,paste0(stem,"_details.rds")))
   }
   out
 }
 
-# ---- CLI -------------------------------------------------------------------
-if (sys.nframe() == 0L || identical(environment(), globalenv())) {
-  args <- commandArgs(trailingOnly = TRUE)
+# ---- explicit CLI: avoid side effects when this script is sourced -----------
+if (sys.nframe() == 0L) {
+  args <- commandArgs(trailingOnly=TRUE)
   if (length(args)) {
-    which <- args[1]
-    Bopt  <- as.integer(sub("--B=", "", grep("--B=", args, value = TRUE)))
-    B     <- if (length(Bopt) && !is.na(Bopt)) Bopt else 500
-    Ropt  <- sub("--rule=", "", grep("--rule=", args, value = TRUE))
-    rule  <- if (length(Ropt)) Ropt[1] else "rodeo"   # Route-2 default
-    names <- if (which == "all") setdiff(names(SCEN), c("E8", "E9")) else which
-    res <- lapply(names, run_scenario, B = B, rule = rule)
-    names(res) <- names
-    saveRDS(res, file.path("..", "data",
-            sprintf("robustness_%s_%s.rds", if (which == "all") "all" else which, rule)),
-            compress = FALSE)
+    target <- args[1L]
+    Bopt <- grep("^--B=",args,value=TRUE)
+    B <- if (length(Bopt)) as.integer(sub("^--B=","",Bopt[1L])) else reviewer_B(500L)
+    Ropt <- grep("^--rule=",args,value=TRUE)
+    rule <- if (length(Ropt)) sub("^--rule=","",Ropt[1L]) else "rodeo"
+    targets <- if (target=="all") setdiff(names(SCEN),"E1V") else target
+    res <- lapply(targets,run_scenario,B=B,rule=rule)
+    names(res) <- targets
+    saveRDS(res,file.path(reviewer_output_dir(),sprintf("robustness_%s_%s_aggregate.rds",target,rule)))
   }
 }

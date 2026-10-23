@@ -18,8 +18,9 @@
 #   * R2.C4  -- selection is a DETERMINISTIC largest-gap rule on that statistic
 #               (no ANOVA/Tukey distributional claim).
 #   * R2.min2-- an optional marginal PRE-SCREEN keeps the joint product-KDE
-#               numerically stable in high d; the sure-screening set is reported
-#               so the theory can condition on {A0 \supseteq union_y R_y}.
+#               numerically manageable in high d.  It defines a practical active
+#               set A0; the theory is explicitly conditional on the sure-screening
+#               event {A0 \supseteq R_y} and does not assert it automatically.
 #
 # Numerics: all kernel weights are formed in log-space and stabilised by the
 # per-eval-point row maximum, so the STANDARDISED statistic Z_j / sd(Z_j) is
@@ -55,6 +56,10 @@ kde_logW <- function(Xeval, Xfit, h) {
 # Because W is stabilised per eval-point (row max removed), the common exp(M_l)
 # scale cancels between Z_j and its sd, so t_j is scale-free (and underflow-free).
 rodeo_tstat <- function(Xeval, Xfit, h) {
+  if (!is.matrix(Xeval) || !is.matrix(Xfit) ||
+      ncol(Xeval) != ncol(Xfit) || length(h) != ncol(Xfit) ||
+      any(!is.finite(h)) || any(h <= 0))
+    stop("rodeo_tstat: aligned matrices and positive finite bandwidths required")
   m <- nrow(Xeval); n <- nrow(Xfit); p <- ncol(Xfit)
   logW <- kde_logW(Xeval, Xfit, h)
   Mrow <- apply(logW, 1L, max)
@@ -66,7 +71,7 @@ rodeo_tstat <- function(Xeval, Xfit, h) {
     zbar    <- rowMeans(contrib)                 # scaled Z_j
     zvar    <- rowMeans(contrib * contrib) - zbar * zbar
     se      <- sqrt(pmax(zvar, 0) / n)
-    tmat[, j] <- zbar / pmax(se, 1e-300)
+    tmat[, j] <- ifelse(se > 1e-12, zbar / se, 0)
   }
   tmat                                            # m x p, scale-free
 }
@@ -93,6 +98,9 @@ rodeo_select_class <- function(X, cols = seq_len(ncol(X)),
                                lambda_mult = 2.0, gap_factor = 3.0,
                                max_frac = 0.5, cf_folds = 2L) {
   n <- nrow(X); p <- ncol(X)
+  if (n < max(10L, cf_folds * 2L) || p < 2L ||
+      cf_folds < 2L || cf_folds >= n || beta <= 0 || beta >= 1)
+    stop("rodeo_select_class: invalid sample size, dimension, folds or beta")
   sdcol <- apply(X, 2L, sd)
   h0    <- rep(c0 * max(sdcol, 1e-6), p)          # common, oversmoothed start
   # cross-fitting folds: average the standardised-squared statistic across folds
@@ -109,7 +117,10 @@ rodeo_select_class <- function(X, cols = seq_len(ncol(X)),
     Tbest  <- rep(0.0, p)
     for (it in seq_len(max_iter)) {
       if (!any(active)) break
-      tt <- rodeo_tstat(Xev, Xfit[, active, drop = FALSE], h[active])
+      # IMPORTANT: fit and evaluation columns must carry the SAME active
+      # original-coordinate indices; otherwise derivatives are misaligned.
+      tt <- rodeo_tstat(Xev[, active, drop = FALSE],
+                        Xfit[, active, drop = FALSE], h[active])
       Tj <- colMeans(tt * tt)                     # non-cancelling aggregate
       Tbest[active] <- pmax(Tbest[active], Tj)
       keep_shrink <- Tj > (lambda * lambda)       # still significant => shrink
@@ -178,21 +189,32 @@ rodeo_detect_bc <- function(train_list, keep = 40, mc.cores = 1L, ...) {
   rodeo_detect(tl_u, keep = keep, mc.cores = mc.cores, ...)
 }
 
-## ---- all classes -> C x D detection matrix (drop-in for the harness) ------
-# train_list : list of C matrices (n_y x D). Parallel over classes.
-# Returns a C x D 0/1 matrix, same shape as detect_gap()/detect_zscore().
-rodeo_detect <- function(train_list, keep = 40, mc.cores = 1L, ...) {
-  C <- length(train_list); D <- ncol(train_list[[1]])
-  X_pool_sd <- apply(do.call(rbind, train_list), 2L, sd)
+## ---- inspectable selection for audit and sure-screening diagnostics --------
+# ONE screening/selection pass per class; results include the exact screen set.
+# The wrapper rodeo_detect retains its original C x D matrix interface.
+rodeo_detect_detail <- function(train_list, keep = 40, mc.cores = 1L, ...) {
+  C <- length(train_list)
+  if (C < 1L || any(vapply(train_list, ncol, integer(1)) != ncol(train_list[[1L]])))
+    stop("train_list must contain matrices with equal numbers of columns")
+  D <- ncol(train_list[[1L]])
+  pool_sd <- apply(do.call(rbind, train_list), 2L, sd)
   one <- function(y) {
-    Xy   <- train_list[[y]]
-    cols <- rodeo_prescreen(Xy, X_pool_sd, keep = keep)
-    res  <- rodeo_select_class(Xy[, cols, drop = FALSE], cols = cols, ...)
-    out  <- integer(D)
-    out[cols[res$selected]] <- 1L
-    out
+    Xy <- train_list[[y]]
+    cols <- rodeo_prescreen(Xy, pool_sd, keep = keep)
+    res <- rodeo_select_class(Xy[, cols, drop = FALSE], cols = cols, ...)
+    det <- integer(D)
+    det[cols[res$selected]] <- 1L
+    list(detected = det, screen = cols, score = res$score,
+         score_columns = cols, bandwidth = res$bw)
   }
-  rows <- if (mc.cores > 1L) mclapply(seq_len(C), one, mc.cores = mc.cores)
-          else lapply(seq_len(C), one)
-  do.call(rbind, rows)
+  rows <- if (mc.cores > 1L && .Platform$OS.type != "windows")
+    parallel::mclapply(seq_len(C), one, mc.cores = mc.cores)
+  else lapply(seq_len(C), one)
+  list(detected = do.call(rbind, lapply(rows, `[[`, "detected")),
+       screen = lapply(rows, `[[`, "screen"),
+       class_diagnostics = rows, keep = min(keep, D))
+}
+
+rodeo_detect <- function(train_list, keep = 40, mc.cores = 1L, ...) {
+  rodeo_detect_detail(train_list, keep = keep, mc.cores = mc.cores, ...)$detected
 }

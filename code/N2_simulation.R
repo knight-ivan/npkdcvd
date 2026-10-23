@@ -84,7 +84,7 @@ one_rep <- function(b, n_y) {
 }
 
 # ---- Main loop ----
-n_cores <- max(1L, detectCores() - 1L)
+n_cores <- max(1L, detectCores() - 2L)
 cat(sprintf("C=%d | d=%d | r_y=%d per class | σ_rel=0.5 | DETECT_TAU=%.1f\n",
             C, D, R_Y[1], DETECT_TAU))
 cat("Using", n_cores, "cores\n\n")

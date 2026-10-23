@@ -96,7 +96,7 @@ run_experiment <- function(label, X_act, class_idx, n_cores) {
        spec_mn = mean(mat[,"spec"]), spec_sd = sd(mat[,"spec"]))
 }
 
-n_cores <- max(1L, detectCores() - 1L)
+n_cores <- max(1L, detectCores() - 2L)
 cat(sprintf("Using %d cores\n", n_cores))
 
 # ============================================================

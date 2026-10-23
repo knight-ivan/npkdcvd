@@ -2,7 +2,7 @@
 # emerge? Blank at N_TR=100 may be a power artifact of the standardized statistic.
 # Run from code/ so source("rodeo_core.R") resolves. Reads /tmp/mnist_*.bin.
 source("rodeo_core.R"); suppressMessages(library(parallel))
-cores <- as.integer(Sys.getenv("RODEO_CORES","12"))
+cores <- as.integer(Sys.getenv("RODEO_CORES", as.character(max(1L, detectCores() - 2L))))
 dB <- 784L; nB <- 70000L; C <- 10L
 X <- matrix(readBin("/tmp/mnist_X.bin","numeric",nB*dB,size=4,endian="little"),
             nrow=nB, ncol=dB, byrow=TRUE)/255

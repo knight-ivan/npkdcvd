@@ -8,6 +8,11 @@ FIGURES_DIR <- file.path("..", "manuscript", "figures")
 DATA_DIR    <- file.path("..", "data")
 library(e1071)
 library(parallel)
+# R2: explicit, configurable Stage-1 descriptive gate. It is newly defined
+# here; the old published gate annotations did not arise from coded decisions.
+.r2_script_dir <- dirname(normalizePath(sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value=TRUE)[1L])))
+source(file.path(.r2_script_dir, "reviewer_metrics.R"))
+STAGE1_THRESHOLD <- as.numeric(Sys.getenv("STAGE1_THRESHOLD", "0.60"))
 
 set.seed(20260510)
 
@@ -209,7 +214,7 @@ one_rep <- function(b, irrel_type) {
 # ---- Main loop — all 3 sub-experiments in parallel ----
 irrel_types <- c("uniform", "normal", "ar1")
 
-n_total  <- max(1L, detectCores() - 1L)
+n_total  <- max(1L, detectCores() - 2L)
 n_sub    <- length(irrel_types)
 cores_ea <- max(1L, n_total %/% n_sub)   # cores per sub-experiment
 cat(sprintf("Using %d total cores, %d per sub-experiment\n\n", n_total, cores_ea))
@@ -241,6 +246,10 @@ for (irrel in irrel_types) {
       " (", round(sd(r$acc_npk), 4), ")\n", sep = "")
   cat("SVM accuracy:      ", round(mean(r$acc_svm), 4),
       " (", round(sd(r$acc_svm), 4), ")\n", sep = "")
+  cat(sprintf("Stage-1 gate (mean test accuracy >= %.2f): NPKDC-vd %s, SVM %s\n",
+              STAGE1_THRESHOLD,
+              ifelse(stage1_gate(mean(r$acc_npk), STAGE1_THRESHOLD),"pass","fail"),
+              ifelse(stage1_gate(mean(r$acc_svm), STAGE1_THRESHOLD),"pass","fail")))
   cat("Attribution F1 per class (mean over", B, "reps):\n")
   print(round(apply(r$attr_arr[,,3], 2, mean), 4))
   cat("\n")

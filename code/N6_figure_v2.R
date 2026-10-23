@@ -43,7 +43,7 @@ one_rep_sel <- function(b) {
   list(np=np_sel, rf=rf_sel)
 }
 
-n_cores <- max(1L, detectCores()-1L)
+n_cores <- max(1L, detectCores()-2L)
 cat("Computing selection frequencies (B=1000)...\n")
 sels    <- mclapply(1:B, one_rep_sel, mc.cores=n_cores)
 np_freq <- Reduce("+", lapply(sels, `[[`, "np")) / B

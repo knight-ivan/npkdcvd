@@ -183,7 +183,7 @@ one_rep <- function(b) {
 
 
 # ---- Main ----
-n_cores <- max(1L, detectCores() - 1L)
+n_cores <- max(1L, detectCores() - 2L)
 cat(sprintf("N3: C=%d, d=%d, r_y=%d, n_y=%d, n_test=%d, B=%d\n",
             C, D, R_Y[1], N_Y, N_TEST, B))
 cat("Using", n_cores, "cores\n\n")

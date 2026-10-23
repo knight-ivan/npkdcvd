@@ -58,7 +58,7 @@ one_rep <- function(b, irrel_type) {
 }
 
 B    <- as.integer(Sys.getenv("RODEO_B", "60"))
-ncor <- as.integer(Sys.getenv("RODEO_CORES", as.character(detectCores())))
+ncor <- as.integer(Sys.getenv("RODEO_CORES", as.character(max(1L, detectCores() - 2L))))
 types <- c("uniform", "normal", "ar1")
 cat(sprintf("=== (2) Study-1 all sub-experiments: C=%d D=%d n_y=%d, B=%d/type on %d cores ===\n",
             C, D, N_Y, B, ncor))

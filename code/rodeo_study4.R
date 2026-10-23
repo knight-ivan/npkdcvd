@@ -57,7 +57,7 @@ one_rep <- function(b) {
 }
 
 B    <- as.integer(Sys.getenv("RODEO_B", "120"))
-ncor <- as.integer(Sys.getenv("RODEO_CORES", as.character(detectCores())))
+ncor <- as.integer(Sys.getenv("RODEO_CORES", as.character(max(1L, detectCores() - 2L))))
 cat(sprintf("=== Study 4: class-level vs per-obs stability (rodeo), B=%d on %d cores ===\n", B, ncor))
 out <- mclapply(seq_len(B), one_rep, mc.cores = ncor)
 

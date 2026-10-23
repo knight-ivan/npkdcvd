@@ -1,13 +1,17 @@
-# real_anuran.R — Anuran Calls (MFCCs): NPKDC-vd classification + rebuilt-rodeo
-# attribution (Route 2). Data: UCI Anuran Calls (MFCCs), Frogs_MFCCs.csv.
-#   ANURAN_CSV=/path/Frogs_MFCCs.csv  RODEO_CORES=22  RODEO_B=1000  Rscript real_anuran.R
+# real_anuran.R — Anuran Calls (MFCCs): NPKDC-vd classification + corrected
+# cross-fitted rodeo attribution. Data: UCI Anuran Calls (MFCCs), Frogs_MFCCs.csv.
+# Each replication reports the selector on the raw MFCC scale and, as main-paper Algorithm 3
+# prescribes when the shared background is non-flat, after the pooled empirical
+# PIT (rodeo_detect_bc).  The raw-scale call is made first, so its random stream
+# is identical to a raw-only run.  Classification does not use the rodeo.
+#   ANURAN_CSV=/path/Frogs_MFCCs.csv  RODEO_CORES=14  RODEO_B=1000  Rscript real_anuran.R
 here <- dirname(sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE)[1]))
 if (length(here) && nzchar(here)) setwd(here)
 source("rodeo_core.R")
 suppressMessages({library(parallel); library(e1071)})
 
 CSV   <- Sys.getenv("ANURAN_CSV", "/tmp/anuran/Frogs_MFCCs.csv")
-cores <- max(1L, as.integer(Sys.getenv("RODEO_CORES", as.character(detectCores() - 2L))))
+cores <- max(1L, as.integer(Sys.getenv("RODEO_CORES", as.character(max(1L, detectCores() - 2L)))))
 B     <- as.integer(Sys.getenv("RODEO_B", "1000"))
 N_TR  <- 100L; N_TE <- 50L
 
@@ -47,28 +51,38 @@ one_rep <- function(b, X) {
   ys <- tryCatch(as.integer(as.character(predict(
           svm(Xtr, factor(ytr), kernel = "radial"), Xte))), error = function(e) rep(1L, nrow(Xte)))
   m_svm <- metrics(ys, yte, C)
-  sel <- rodeo_detect(lapply(seq_len(C), function(k) Xtr[ytr == k, , drop = FALSE]), keep = D, mc.cores = 1L)
-  list(npkdc = m_npkdc, svm = m_svm, sel = sel)
+  trl <- lapply(seq_len(C), function(k) Xtr[ytr == k, , drop = FALSE])
+  sel    <- rodeo_detect(trl, keep = D, mc.cores = 1L)      # raw scale
+  sel_bc <- rodeo_detect_bc(trl, keep = D, mc.cores = 1L)   # pooled empirical PIT
+  list(npkdc = m_npkdc, svm = m_svm, sel = sel, sel_bc = sel_bc)
 }
 run <- function(label, X) {
   cat(sprintf("\n=== Anuran %s: d=%d ===\n", label, ncol(X)))
   res <- mclapply(seq_len(B), function(b) one_rep(b, X), mc.cores = cores)
   npk <- do.call(rbind, lapply(res, `[[`, "npkdc")); svm <- do.call(rbind, lapply(res, `[[`, "svm"))
-  selfreq <- Reduce(`+`, lapply(res, `[[`, "sel")) / length(res)
+  selfreq    <- Reduce(`+`, lapply(res, `[[`, "sel")) / length(res)
+  selfreq_bc <- Reduce(`+`, lapply(res, `[[`, "sel_bc")) / length(res)
+  nsel    <- vapply(res, function(r) mean(rowSums(r$sel)), numeric(1))
+  nsel_bc <- vapply(res, function(r) mean(rowSums(r$sel_bc)), numeric(1))
   f <- function(v) sprintf("%.4f (%.4f)", mean(v), sd(v))
   cat("NPKDC-vd  acc", f(npk[, "acc"]), " prec", f(npk[, "prec"]), " spec", f(npk[, "spec"]), "\n")
   cat("SVM       acc", f(svm[, "acc"]), " prec", f(svm[, "prec"]), " spec", f(svm[, "spec"]), "\n")
-  list(label = label, npkdc = npk, svm = svm, selfreq = selfreq, species = keep_sp)
+  list(label = label, npkdc = npk, svm = svm, selfreq = selfreq, selfreq_bc = selfreq_bc,
+       nsel = nsel, nsel_bc = nsel_bc, species = keep_sp, B = length(res))
 }
 
 resO <- run("Original (22 MFCC)", mfcc)
 set.seed(2026); Xext <- cbind(mfcc, matrix(rnorm(nrow(mfcc) * 5), nrow(mfcc), 5))
 colnames(Xext)[23:27] <- paste0("Noise", 1:5)
 resE <- run("Extended (22 MFCC + 5 noise)", Xext)
-cat("\nExtended noise-probe (cols 23-27) mean selection frequency across species:\n")
-print(round(colMeans(resE$selfreq[, 23:27, drop = FALSE]), 4))
-cat("\nPer-species MFCC selection frequency (Original):\n")
-rownames(resO$selfreq) <- keep_sp; print(round(resO$selfreq, 2))
-saveRDS(list(Original = resO, Extended = resE, species = keep_sp),
-        file.path("..", "data", "real_anuran_results.rds"))
-cat("\nsaved real_anuran_results.rds\n")
+for (sc in c("selfreq", "selfreq_bc")) {
+  cat(sprintf("\n[%s] Extended noise-probe (cols 23-27) selection frequency across species:\n", sc))
+  print(round(colMeans(resE[[sc]][, 23:27, drop = FALSE]), 4))
+  cat(sprintf("[%s] Per-species MFCC selection frequency (Original):\n", sc))
+  rownames(resO[[sc]]) <- keep_sp; print(round(resO[[sc]], 2))
+}
+outdir <- Sys.getenv("RODEO_OUT", file.path("..", "results_R2")); dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
+saveRDS(list(Original = resO, Extended = resE, species = keep_sp,
+             selector = "cross-fitted rodeo + largest gap; raw scale and pooled empirical PIT"),
+        file.path(outdir, "real_anuran_results.rds"))
+cat(sprintf("\nsaved %s\n", file.path(outdir, "real_anuran_results.rds")))

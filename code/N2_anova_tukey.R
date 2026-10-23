@@ -151,7 +151,7 @@ one_rep <- function(b, n_y) {
   attr_metrics_full(det)
 }
 
-n_cores <- max(1L, detectCores() - 1L)
+n_cores <- max(1L, detectCores() - 2L)
 cat(sprintf("Study 3 (ANOVA/Tukey): C=%d, d=%d, r_y=%d, alpha=%.2f\n",
             C, D, R_Y[1], ALPHA))
 cat("Using", n_cores, "cores\n\n")
