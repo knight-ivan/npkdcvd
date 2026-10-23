@@ -3,7 +3,7 @@
 # parallel, e1071).  Table 1 and Supplement Tables S.1-S.4 come from original_matlab/.  Run from any directory:
 #   bash code/run_R2.sh          # full run, B=1000 -> ../results_R2 and ../figures
 #   bash code/run_R2.sh smoke    # quick check, B=2  -> ../results_smoke only
-# The two real-data analyses need the public data sets (see README_R2.md):
+# The two real-data analyses need the public data sets (see README.md):
 #   ANURAN_CSV=/path/Frogs_MFCCs.csv  DIGIT_DIR=/dir/with/digit/binaries
 set -euo pipefail
 cd "$(dirname "$0")"
